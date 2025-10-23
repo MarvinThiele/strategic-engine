@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Engine - Battle Viewer</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Strategic Engine - Battle Viewer</h1>
+            <div class="controls">
+                <button id="startBattle">New Battle</button>
+                <input type="number" id="seedInput" placeholder="Seed (default: 42)" value="42">
+                <div class="time-controls">
+                    <span class="label">Speed:</span>
+                    <button id="pauseBtn" class="time-btn">⏸ Pause</button>
+                    <button id="slowBtn" class="time-btn">0.5x</button>
+                    <button id="normalBtn" class="time-btn">1x</button>
+                    <button id="fastBtn" class="time-btn active">30x</button>
+                    <button id="veryFastBtn" class="time-btn">100x</button>
+                    <span id="currentSpeed">30x</span>
+                </div>
+                <span id="battleTime">T+0ms</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Battlefield Visualization -->
+            <div class="battlefield-container">
+                <h2>Battlefield (10km)</h2>
+                <canvas id="battlefield" width="1000" height="200"></canvas>
+                <div class="legend">
+                    <span class="blue-indicator">■ BLUE Forces</span>
+                    <span class="red-indicator">■ RED Forces</span>
+                </div>
+            </div>
+
+            <!-- Unit Status -->
+            <div class="units-container">
+                <h2>Unit Status</h2>
+                <div id="unitsList"></div>
+            </div>
+
+            <!-- Order Controls -->
+            <div class="orders-container">
+                <h2>Issue Orders</h2>
+                <div class="order-form">
+                    <select id="unitSelect">
+                        <option value="">Select Unit...</option>
+                    </select>
+                    <select id="orderType">
+                        <option value="move">Move</option>
+                        <option value="attack">Attack</option>
+                        <option value="defend">Defend</option>
+                    </select>
+                    <input type="number" id="targetPos" placeholder="Target Position (m)" step="100">
+                    <select id="targetUnit" style="display: none;">
+                        <option value="">Select Target...</option>
+                    </select>
+                    <button id="submitOrder">Send Order</button>
+                </div>
+            </div>
+
+            <!-- Event Log -->
+            <div class="events-container">
+                <h2>Event Log <button id="clearEvents" class="small-btn">Clear</button></h2>
+                <div id="eventLog"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
