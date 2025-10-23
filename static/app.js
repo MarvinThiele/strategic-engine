@@ -2,12 +2,13 @@
 let eventOffset = 0;
 let updateInterval = null;
 let state = null;
+let selectedUnit = null;
 
 // Canvas setup
 const canvas = document.getElementById('battlefield');
 const ctx = canvas.getContext('2d');
-const BATTLEFIELD_LENGTH = 10000; // 10km in meters
-const SCALE = canvas.width / BATTLEFIELD_LENGTH;
+const BATTLEFIELD_SIZE = 10000; // 10km x 10km in meters
+const SCALE = canvas.width / BATTLEFIELD_SIZE;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,6 +22,14 @@ function setupEventListeners() {
     document.getElementById('submitOrder').addEventListener('click', submitOrder);
     document.getElementById('clearEvents').addEventListener('click', clearEventLog);
     document.getElementById('orderType').addEventListener('change', handleOrderTypeChange);
+    document.getElementById('unitSelect').addEventListener('change', handleUnitSelectChange);
+
+    // Canvas click for move orders
+    canvas.addEventListener('click', handleCanvasClick);
+
+    // Canvas hover for cursor feedback
+    canvas.addEventListener('mousemove', handleCanvasHover);
+    canvas.style.cursor = 'crosshair';
 
     // Time control buttons
     document.getElementById('pauseBtn').addEventListener('click', () => setTimeCompression(0.1));
@@ -30,20 +39,89 @@ function setupEventListeners() {
     document.getElementById('veryFastBtn').addEventListener('click', () => setTimeCompression(100.0));
 }
 
+function handleUnitSelectChange() {
+    selectedUnit = document.getElementById('unitSelect').value;
+}
+
+function handleCanvasClick(event) {
+    const rect = canvas.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
+
+    // Convert canvas coordinates to world coordinates
+    const worldX = clickX / SCALE;
+    const worldY = clickY / SCALE;
+
+    // First, check if we clicked on a unit to select it
+    const clickedUnit = findUnitAtPosition(worldX, worldY);
+
+    if (clickedUnit) {
+        // Select the clicked unit
+        selectedUnit = clickedUnit.id;
+        document.getElementById('unitSelect').value = clickedUnit.id;
+        addEventToLog(`Selected unit ${clickedUnit.id}`, 'system');
+        updateBattlefield(); // Redraw to show selection
+        return;
+    }
+
+    // If no unit clicked and a unit is selected and order type is move, set target position
+    if (selectedUnit && document.getElementById('orderType').value === 'move') {
+        document.getElementById('targetX').value = Math.round(worldX);
+        document.getElementById('targetY').value = Math.round(worldY);
+        addEventToLog(`Move order set to (${Math.round(worldX)}, ${Math.round(worldY)})`, 'system');
+    }
+}
+
+function handleCanvasHover(event) {
+    const rect = canvas.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
+
+    const worldX = clickX / SCALE;
+    const worldY = clickY / SCALE;
+
+    const hoveredUnit = findUnitAtPosition(worldX, worldY);
+
+    // Change cursor based on what's under the mouse
+    if (hoveredUnit) {
+        canvas.style.cursor = 'pointer';
+    } else {
+        canvas.style.cursor = 'crosshair';
+    }
+}
+
+function findUnitAtPosition(worldX, worldY) {
+    if (!state) return null;
+
+    const clickRadius = 30; // 30 meters click tolerance
+
+    for (const unit of Object.values(state.units)) {
+        const dx = unit.pos[0] - worldX;
+        const dy = unit.pos[1] - worldY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= clickRadius) {
+            return unit;
+        }
+    }
+
+    return null;
+}
+
 function handleOrderTypeChange() {
     const orderType = document.getElementById('orderType').value;
-    const targetPos = document.getElementById('targetPos');
+    const moveInputs = document.getElementById('moveInputs');
     const targetUnit = document.getElementById('targetUnit');
 
     if (orderType === 'move') {
-        targetPos.style.display = 'inline-block';
+        moveInputs.style.display = 'flex';
         targetUnit.style.display = 'none';
     } else if (orderType === 'attack') {
-        targetPos.style.display = 'none';
+        moveInputs.style.display = 'none';
         targetUnit.style.display = 'inline-block';
         updateTargetUnitOptions();
     } else { // defend
-        targetPos.style.display = 'none';
+        moveInputs.style.display = 'none';
         targetUnit.style.display = 'none';
     }
 }
@@ -73,7 +151,8 @@ async function startNewBattle() {
 async function submitOrder() {
     const unitId = document.getElementById('unitSelect').value;
     const orderType = document.getElementById('orderType').value;
-    const targetPos = document.getElementById('targetPos').value;
+    const targetX = document.getElementById('targetX').value;
+    const targetY = document.getElementById('targetY').value;
     const targetUnitId = document.getElementById('targetUnit').value;
 
     if (!unitId) {
@@ -88,11 +167,11 @@ async function submitOrder() {
     };
 
     if (orderType === 'move') {
-        if (!targetPos) {
-            alert('Please enter target position');
+        if (!targetX || !targetY) {
+            alert('Please enter target X and Y coordinates (or click on the map)');
             return;
         }
-        order.target_pos_m = parseFloat(targetPos);
+        order.target_pos = [parseFloat(targetX), parseFloat(targetY)];
     } else if (orderType === 'attack') {
         if (!targetUnitId) {
             alert('Please select target unit');
@@ -102,7 +181,6 @@ async function submitOrder() {
     }
 
     try {
-        console.log('Submitting order:', order);
         const response = await fetch('/battle/local/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -110,8 +188,6 @@ async function submitOrder() {
         });
 
         if (response.ok) {
-            const result = await response.json();
-            console.log('Order response:', result);
             addEventToLog(`Order issued: ${orderType} for ${unitId}`, 'system');
         } else {
             const errorText = await response.text();
@@ -133,11 +209,6 @@ async function fetchState() {
         }
 
         const newState = await response.json();
-
-        // Log if state changed
-        if (!state || state.ts_ms !== newState.ts_ms) {
-            console.log('State update:', newState.ts_ms, 'ms');
-        }
 
         state = newState;
         updateBattlefield();
@@ -171,83 +242,102 @@ function updateBattlefield() {
     if (!state) return;
 
     // Clear canvas
-    ctx.fillStyle = '#2a2a2a';
+    ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw grid lines
-    ctx.strokeStyle = '#444';
+    // Draw grid
+    ctx.strokeStyle = '#2a2a2a';
     ctx.lineWidth = 1;
-    for (let i = 0; i <= 10; i++) {
-        const x = (i * 1000) * SCALE;
+    const gridSize = 1000; // 1km grid
+    for (let i = 0; i <= BATTLEFIELD_SIZE; i += gridSize) {
+        const pos = i * SCALE;
+        // Vertical lines
         ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
+        ctx.moveTo(pos, 0);
+        ctx.lineTo(pos, canvas.height);
+        ctx.stroke();
+        // Horizontal lines
+        ctx.beginPath();
+        ctx.moveTo(0, pos);
+        ctx.lineTo(canvas.width, pos);
         ctx.stroke();
 
         // Labels
-        ctx.fillStyle = '#888';
-        ctx.font = '10px monospace';
-        ctx.fillText(`${i}km`, x + 2, 12);
+        if (i % 2000 === 0) {
+            ctx.fillStyle = '#555';
+            ctx.font = '10px monospace';
+            ctx.fillText(`${i/1000}km`, pos + 2, 12);
+            ctx.fillText(`${i/1000}km`, 2, pos + 12);
+        }
     }
 
     // Draw units
     Object.values(state.units).forEach(unit => {
-        const x = unit.pos_m * SCALE;
-        const y = canvas.height / 2;
+        const x = unit.pos[0] * SCALE;
+        const y = unit.pos[1] * SCALE;
 
         // Unit color based on side
         const color = unit.side === 'BLUE' ? '#4080ff' : '#ff4040';
-        const size = 12;
-
-        // Draw unit as triangle
-        ctx.fillStyle = unit.routed ? '#666' : color;
-        ctx.beginPath();
-        if (unit.side === 'BLUE') {
-            ctx.moveTo(x, y - size);
-            ctx.lineTo(x + size, y + size);
-            ctx.lineTo(x - size, y + size);
-        } else {
-            ctx.moveTo(x, y + size);
-            ctx.lineTo(x + size, y - size);
-            ctx.lineTo(x - size, y - size);
-        }
-        ctx.closePath();
-        ctx.fill();
+        const size = 16;
+        const isSelected = unit.id === selectedUnit;
 
         // Draw sensor range
-        ctx.strokeStyle = color + '40';
+        ctx.strokeStyle = color + '20';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(x, y, unit.sensor_range_m * SCALE, 0, Math.PI * 2);
         ctx.stroke();
 
+        // Draw unit as circle
+        ctx.fillStyle = unit.routed ? '#666' : color;
+        if (isSelected) {
+            ctx.strokeStyle = '#ffff00';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, size + 4, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+
         // Unit label
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText(unit.id, x - 10, y - 20);
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(unit.id, x, y - size - 5);
 
         // HP bar
-        const hpWidth = 30;
+        const hpWidth = 40;
         const hpHeight = 4;
         const hpRatio = Math.max(0, unit.hp / 100);
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x - hpWidth/2, y + 20, hpWidth, hpHeight);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(x - hpWidth/2, y + size + 5, hpWidth, hpHeight);
         ctx.fillStyle = hpRatio > 0.5 ? '#4f4' : hpRatio > 0.25 ? '#ff4' : '#f44';
-        ctx.fillRect(x - hpWidth/2, y + 20, hpWidth * hpRatio, hpHeight);
+        ctx.fillRect(x - hpWidth/2, y + size + 5, hpWidth * hpRatio, hpHeight);
 
         // Movement intent indicator
-        if (unit.intent_target_pos_m !== null && !unit.routed) {
-            const targetX = unit.intent_target_pos_m * SCALE;
-            ctx.strokeStyle = color + '80';
+        if (unit.intent_target_pos && !unit.routed) {
+            const targetX = unit.intent_target_pos[0] * SCALE;
+            const targetY = unit.intent_target_pos[1] * SCALE;
+            ctx.strokeStyle = color + '60';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
             ctx.moveTo(x, y);
-            ctx.lineTo(targetX, y);
+            ctx.lineTo(targetX, targetY);
             ctx.stroke();
             ctx.setLineDash([]);
+
+            // Draw target marker
+            ctx.fillStyle = color + '40';
+            ctx.beginPath();
+            ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
+            ctx.fill();
         }
     });
+
+    ctx.textAlign = 'left'; // Reset text align
 }
 
 function updateUnitsList() {
@@ -268,7 +358,7 @@ function updateUnitsList() {
                 <span class="badge">${unit.side}</span>
             </div>
             <div class="unit-stats">
-                <div>Position: ${Math.round(unit.pos_m)}m</div>
+                <div>Position: (${Math.round(unit.pos[0])}, ${Math.round(unit.pos[1])})</div>
                 <div>HP: ${unit.hp.toFixed(1)}/100 (${hpPercent.toFixed(0)}%)</div>
                 <div>Ammo: ${unit.ammo}/40</div>
                 <div>Status: ${unit.routed ? 'ROUTED' : 'Active'}</div>
@@ -296,18 +386,21 @@ function updateUnitSelects() {
     });
 
     unitSelect.value = currentValue;
+    if (currentValue) {
+        selectedUnit = currentValue;
+    }
 }
 
 function updateTargetUnitOptions() {
     if (!state) return;
 
-    const selectedUnit = document.getElementById('unitSelect').value;
+    const selectedUnitId = document.getElementById('unitSelect').value;
     const targetSelect = document.getElementById('targetUnit');
     targetSelect.innerHTML = '<option value="">Select Target...</option>';
 
-    if (!selectedUnit) return;
+    if (!selectedUnitId) return;
 
-    const selectedSide = state.units[selectedUnit]?.side;
+    const selectedSide = state.units[selectedUnitId]?.side;
 
     Object.values(state.units).forEach(unit => {
         if (unit.side !== selectedSide) {
@@ -325,7 +418,8 @@ function formatEvent(event) {
 
     switch (event.kind) {
         case 'UnitMoved':
-            msg += `: ${event.data.unit_id} -> ${Math.round(event.data.pos_m)}m`;
+            const pos = event.data.pos;
+            msg += `: ${event.data.unit_id} -> (${Math.round(pos[0])}, ${Math.round(pos[1])})`;
             break;
         case 'Contact':
             msg += `: ${event.data.unit_id} detected ${event.data.target_id}`;

@@ -1,0 +1,99 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --bg-tertiary: #3a3a3a;
+
+  --text-primary: #e0e0e0;
+  --text-secondary: #aaa;
+  --text-muted: #888;
+
+  --color-blue: #4080ff;
+  --color-blue-light: #60a0ff;
+  --color-blue-dark: #3070ef;
+
+  --color-red: #ff4040;
+  --color-red-light: #ff6060;
+
+  --color-yellow: #ffff00;
+
+  --color-success: #4f4;
+  --color-warning: #ff4;
+  --color-danger: #f44;
+
+  --border-radius: 8px;
+  --border-radius-sm: 5px;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+button {
+  background: var(--color-blue);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: var(--color-blue-light);
+}
+
+button:active {
+  background: var(--color-blue-dark);
+}
+
+button:disabled {
+  background: var(--bg-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+input[type="number"],
+select {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid #555;
+  padding: 8px 12px;
+  border-radius: var(--border-radius-sm);
+  font-size: 14px;
+}
+
+input[type="number"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-blue);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}

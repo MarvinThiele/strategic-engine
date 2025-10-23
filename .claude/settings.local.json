@@ -3,7 +3,15 @@
     "allow": [
       "Bash(tree:*)",
       "Bash(dir /S /B *.py)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(python:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 3)",
+      "Bash(del unit.ts battle.ts order.ts event.ts)",
+      "Bash(cat:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

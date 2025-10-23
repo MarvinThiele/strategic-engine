@@ -2,80 +2,72 @@
 
 ## Running the Application
 
-1. **Start the server:**
-   ```bash
-   python main.py
-   ```
+### 1. Start the Backend (FastAPI)
 
-2. **Open your browser:**
-   Navigate to: **http://localhost:8000**
+```bash
+cd backend
+python -m uvicorn api.app:app --reload --port 8000
+```
 
-   You should see the Strategic Engine Battle Viewer interface!
+The backend will be available at `http://localhost:8000`
 
-## Using the Web Interface
+### 2. Start the Frontend (React + Vite)
 
-### Battle Visualization
-- The main canvas shows a 10km battlefield
-- **Blue triangles (pointing up)**: BLUE forces
-- **Red triangles (pointing down)**: RED forces
-- **Circles around units**: Sensor range (800m)
-- **Dashed lines**: Movement intent
-- **HP bars**: Health status (green/yellow/red)
+In a separate terminal:
 
-### Controls
+```bash
+cd frontend
+npm install  # First time only
+npm run dev
+```
 
-**New Battle:**
-- Click "New Battle" button
-- Optionally change the seed number for different RNG outcomes
-- Default seed is 42
+The frontend will be available at `http://localhost:5173`
 
-**Issue Orders:**
-1. Select a unit from the dropdown
-2. Choose order type:
-   - **Move**: Move to a position (in meters, 0-10000)
-   - **Attack**: Target a specific enemy unit
-   - **Defend**: Stop and hold position
-3. Click "Send Order"
+## Usage
 
-### Unit Status Panel
-Shows real-time stats for all units:
-- Position on battlefield
-- HP (health points)
-- Ammo remaining
-- Status (Active/Routed)
+1. **Start a Battle**: Enter a seed number and click "New Battle"
+2. **View Units**: Units are displayed in the left panel, separated by BLUE and RED forces
+3. **Select a Unit**: Click on a unit card in the panel or click directly on the battlefield
+4. **Issue Orders**:
+   - **Move**: Select "Move" order type, enter coordinates (0-10 km), or click on battlefield
+   - **Attack**: Select "Attack" order type, enter target unit ID
+5. **Time Control**: Use speed buttons (Pause, 0.5x, 1x, 30x, 100x) to control simulation speed
+6. **Monitor Events**: Watch the battle log for real-time events (movement, detection, combat)
 
-### Event Log
-Real-time stream of battle events:
-- Movement updates
-- Contact detection
-- Combat actions (shots fired)
-- Damage dealt
-- Unit status changes
+## Features
 
-## Example Battle Scenario
+- **2D Tactical Battlefield**: 10km x 10km grid with visual unit representation
+- **Real-time Updates**: State polling every 500ms
+- **Click-to-Select**: Interactive unit selection on canvas
+- **Visual Feedback**:
+  - Unit sensor ranges (transparent circles)
+  - HP bars with color coding
+  - Movement intent paths (dashed lines)
+  - Selection highlighting (yellow ring)
+  - Routed units (grayed out)
+- **Time Compression**: Control simulation speed from pause to 100x
+- **Event Streaming**: Live battle log with color-coded events
 
-1. **Start a new battle** (seed: 42)
+## Architecture
 
-2. **Move BLUE forces forward:**
-   - Select "B1", choose "Move", enter "5000", click "Send Order"
-   - Select "B2", choose "Move", enter "5000", click "Send Order"
+### Backend (Python)
+- `backend/engine/`: Pure deterministic engine with 2D combat logic
+- `backend/runtime/`: Async tick runner and event log
+- `backend/api/`: FastAPI REST endpoints with CORS
 
-3. **Move RED forces forward:**
-   - Select "R1", choose "Move", enter "5000", click "Send Order"
-   - Select "R2", choose "Move", enter "5000", click "Send Order"
+### Frontend (TypeScript + React)
+- `frontend/src/components/`: React components for UI
+- `frontend/src/hooks/`: Custom hooks for state management
+- `frontend/src/services/`: API client
+- `frontend/src/types/`: TypeScript type definitions
+- `frontend/src/utils/`: Geometry and constants
 
-4. **Watch the battle unfold!**
-   - Units will detect enemies when within sensor range (800m)
-   - Combat automatically starts when contact is made
-   - Watch HP bars and the event log for details
+## Development
 
-## Tips
-
-- Units move at 2 m/s (meters per second)
-- Sensor range is 800m
-- Hit probability decreases with distance (exponential decay)
-- Units may route when HP drops below 30%
-- The simulation runs with 30x time compression
+- Backend runs on port 8000
+- Frontend dev server on port 5173
+- Vite proxy routes `/battle/*` to backend
+- Hot module reloading enabled for both frontend and backend
 
 ## API Documentation
 

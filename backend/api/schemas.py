@@ -1,11 +1,11 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple
 from pydantic import BaseModel, Field
 
 class OrderIn(BaseModel):
     """Order request schema."""
     kind: Literal["move", "attack", "defend"]
     unit_id: str
-    target_pos_m: Optional[float] = None
+    target_pos: Optional[Tuple[float, float]] = None  # (x, y) position
     target_unit_id: Optional[str] = None
     client_ts_ms: int = Field(default=0)
 

@@ -1,37 +1,66 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from engine.engine import Engine
 from engine.model import Order, State, Unit
 from runtime.runner import TickRunner
 from .schemas import EventsResponse, OrderIn, StartRequest
-import os
 
-app = FastAPI(title="Hybrid War Toy")
+app = FastAPI(title="Strategic Engine API")
 runner: TickRunner | None = None
 
-# Mount static files
-static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# Enable CORS for development (React runs on different port)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def _make_initial_state() -> State:
-    """Create default initial battle state."""
+    """Create default initial battle state with mixed unit types."""
+    # 10km x 10km battlefield with varied force composition
+    from engine.model import UNIT_TYPES
+
     units = {
-        "B1": Unit(id="B1", side="BLUE", pos_m=1000, speed_mps=2.0, hp=100, ammo=40, sensor_range_m=800),
-        "B2": Unit(id="B2", side="BLUE", pos_m=1200, speed_mps=2.0, hp=100, ammo=40, sensor_range_m=800),
-        "R1": Unit(id="R1", side="RED",  pos_m=9000, speed_mps=2.0, hp=100, ammo=40, sensor_range_m=800),
-        "R2": Unit(id="R2", side="RED",  pos_m=8800, speed_mps=2.0, hp=100, ammo=40, sensor_range_m=800),
+        # BLUE Force: Combined arms group
+        "B-RECON-1": Unit(id="B-RECON-1", side="BLUE", unit_type_id="RECON",
+                          pos=(1000, 5000), hp=50, ammo=200),
+        "B-INF-1": Unit(id="B-INF-1", side="BLUE", unit_type_id="INFANTRY",
+                        pos=(1500, 3000), hp=80, ammo=10),
+        "B-INF-2": Unit(id="B-INF-2", side="BLUE", unit_type_id="INFANTRY",
+                        pos=(1500, 7000), hp=80, ammo=10),
+        "B-MBT-1": Unit(id="B-MBT-1", side="BLUE", unit_type_id="MBT",
+                        pos=(2000, 4000), hp=150, ammo=40),
+        "B-MBT-2": Unit(id="B-MBT-2", side="BLUE", unit_type_id="MBT",
+                        pos=(2000, 6000), hp=150, ammo=40),
+        "B-ARTY-1": Unit(id="B-ARTY-1", side="BLUE", unit_type_id="ARTILLERY",
+                         pos=(500, 5000), hp=60, ammo=30),
+
+        # RED Force: Combined arms group
+        "R-RECON-1": Unit(id="R-RECON-1", side="RED", unit_type_id="RECON",
+                          pos=(9000, 5000), hp=50, ammo=200),
+        "R-INF-1": Unit(id="R-INF-1", side="RED", unit_type_id="INFANTRY",
+                        pos=(8500, 3000), hp=80, ammo=10),
+        "R-INF-2": Unit(id="R-INF-2", side="RED", unit_type_id="INFANTRY",
+                        pos=(8500, 7000), hp=80, ammo=10),
+        "R-MBT-1": Unit(id="R-MBT-1", side="RED", unit_type_id="MBT",
+                        pos=(8000, 4000), hp=150, ammo=40),
+        "R-MBT-2": Unit(id="R-MBT-2", side="RED", unit_type_id="MBT",
+                        pos=(8000, 6000), hp=150, ammo=40),
+        "R-ARTY-1": Unit(id="R-ARTY-1", side="RED", unit_type_id="ARTILLERY",
+                         pos=(9500, 5000), hp=60, ammo=30),
     }
     return State(ts_ms=0, units=units, battle_id="local")
 
 @app.get("/")
 async def root():
-    """Serve the web interface."""
-    index_path = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "Strategic Engine API - visit /docs for API documentation"}
+    """API root endpoint."""
+    return {
+        "message": "Strategic Engine API",
+        "docs": "/docs",
+        "version": "2.0"
+    }
 
 @app.on_event("startup")
 async def startup():
@@ -78,8 +107,15 @@ async def get_state():
         "ts_ms": s.ts_ms,
         "units": {
             uid: {
-                "id": u.id, "side": u.side, "pos_m": u.pos_m, "hp": u.hp, "ammo": u.ammo,
-                "routed": u.routed, "intent_target_pos_m": u.intent_target_pos_m, "target_id": u.target_id
+                "id": u.id,
+                "side": u.side,
+                "unit_type_id": u.unit_type_id,
+                "pos": list(u.pos),  # Convert tuple to list for JSON
+                "hp": u.hp,
+                "ammo": u.ammo,
+                "routed": u.routed,
+                "intent_target_pos": list(u.intent_target_pos) if u.intent_target_pos else None,
+                "target_id": u.target_id
             } for uid, u in s.units.items()
         }
     }

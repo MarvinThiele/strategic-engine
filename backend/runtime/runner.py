@@ -48,18 +48,14 @@ class TickRunner:
 
             async with self._lock:
                 if batched:
-                    print(f"[TickRunner] Applying {len(batched)} orders to engine: {batched}")
                     self.engine.apply_orders(batched)
                 evts: List[Event] = self.engine.step(self.tick_ms)
 
-            if evts:
-                print(f"[TickRunner] Tick produced {len(evts)} events")
             self.events.append_many(evts)
             await asyncio.sleep(self.sleep_s)
 
     async def enqueue_orders(self, orders: List[Order]):
         """Queue orders to be applied on next tick."""
-        print(f"[TickRunner] Enqueuing {len(orders)} orders")
         await self._orders.put(orders)
 
     async def snapshot(self) -> State:

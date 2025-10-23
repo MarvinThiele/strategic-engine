@@ -29,11 +29,12 @@
         <div class="main-content">
             <!-- Battlefield Visualization -->
             <div class="battlefield-container">
-                <h2>Battlefield (10km)</h2>
-                <canvas id="battlefield" width="1000" height="200"></canvas>
+                <h2>Battlefield (10km x 10km)</h2>
+                <canvas id="battlefield" width="800" height="800"></canvas>
                 <div class="legend">
                     <span class="blue-indicator">■ BLUE Forces</span>
                     <span class="red-indicator">■ RED Forces</span>
+                    <span style="color: #888;">Click to move selected unit</span>
                 </div>
             </div>
 
@@ -51,11 +52,14 @@
                         <option value="">Select Unit...</option>
                     </select>
                     <select id="orderType">
-                        <option value="move">Move</option>
+                        <option value="move">Move (click map)</option>
                         <option value="attack">Attack</option>
                         <option value="defend">Defend</option>
                     </select>
-                    <input type="number" id="targetPos" placeholder="Target Position (m)" step="100">
+                    <div id="moveInputs" style="display: flex; gap: 10px;">
+                        <input type="number" id="targetX" placeholder="X (m)" step="100" style="width: 100px;">
+                        <input type="number" id="targetY" placeholder="Y (m)" step="100" style="width: 100px;">
+                    </div>
                     <select id="targetUnit" style="display: none;">
                         <option value="">Select Target...</option>
                     </select>
