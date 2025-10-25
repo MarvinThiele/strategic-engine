@@ -8,8 +8,8 @@ import type {
   TimeControlResponse,
 } from '../types';
 
-const BASE_URL = ''; // Vite proxy handles /battle routes
-
+// Note: This API client is no longer used since the engine runs in the frontend
+// Keeping it for potential future multiplayer or server-based features
 class BattleAPIClient {
   /**
    * Get current battle state

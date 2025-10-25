@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { battleAPI } from '../../services/api';
+import { useGameStore } from '../../store/gameStore';
 
 const SPEED_OPTIONS = [
   { label: 'Pause', value: 0 },
@@ -10,19 +9,11 @@ const SPEED_OPTIONS = [
 ];
 
 export function TimeControls() {
-  const [currentSpeed, setCurrentSpeed] = useState(30);
-  const [isChanging, setIsChanging] = useState(false);
+  const setTimeCompression = useGameStore((s) => s.setTimeCompression);
+  const currentSpeed = useGameStore((s) => s._gameLoop?.getTimeCompression() ?? 30);
 
-  const handleSpeedChange = async (speed: number) => {
-    setIsChanging(true);
-    try {
-      await battleAPI.setTimeCompression(speed);
-      setCurrentSpeed(speed);
-    } catch (err) {
-      console.error('Failed to set time compression:', err);
-    } finally {
-      setIsChanging(false);
-    }
+  const handleSpeedChange = (speed: number) => {
+    setTimeCompression(speed);
   };
 
   return (
@@ -34,7 +25,6 @@ export function TimeControls() {
             key={value}
             className={`btn-speed ${currentSpeed === value ? 'active' : ''}`}
             onClick={() => handleSpeedChange(value)}
-            disabled={isChanging}
           >
             {label}
           </button>

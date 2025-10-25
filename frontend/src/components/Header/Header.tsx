@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { BattleState } from '../../types';
-import { battleAPI } from '../../services/api';
+import { useGameStore } from '../../store/gameStore';
 
 interface HeaderProps {
   state: BattleState | null;
@@ -9,19 +9,12 @@ interface HeaderProps {
 
 export function Header({ state, onBattleStarted }: HeaderProps) {
   const [seed, setSeed] = useState(String(Math.floor(Math.random() * 1000000)));
-  const [isStarting, setIsStarting] = useState(false);
+  const startBattle = useGameStore((s) => s.startBattle);
 
-  const handleStartBattle = async () => {
-    setIsStarting(true);
-    try {
-      await battleAPI.startBattle(parseInt(seed, 10));
-      onBattleStarted();
-    } catch (err) {
-      console.error('Failed to start battle:', err);
-      alert('Failed to start battle');
-    } finally {
-      setIsStarting(false);
-    }
+  const handleStartBattle = () => {
+    const seedNum = parseInt(seed, 10);
+    startBattle(seedNum);
+    onBattleStarted();
   };
 
   const formatTime = (ts_ms: number): string => {
@@ -43,16 +36,14 @@ export function Header({ state, onBattleStarted }: HeaderProps) {
               type="number"
               value={seed}
               onChange={(e) => setSeed(e.target.value)}
-              disabled={isStarting}
             />
           </div>
 
           <button
             className="btn-new-battle"
             onClick={handleStartBattle}
-            disabled={isStarting}
           >
-            {isStarting ? 'Starting...' : 'New Battle'}
+            New Battle
           </button>
 
           {state && (

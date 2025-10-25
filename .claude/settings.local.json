@@ -11,7 +11,10 @@
       "Bash(timeout /t 3)",
       "Bash(del unit.ts battle.ts order.ts event.ts)",
       "Bash(cat:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run tsc:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

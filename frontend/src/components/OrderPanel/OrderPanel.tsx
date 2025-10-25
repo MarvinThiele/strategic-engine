@@ -87,13 +87,6 @@ export function OrderPanel({
     }
   };
 
-  // Populate fields when clicking on canvas
-  const setMoveTarget = (pos: Position) => {
-    setOrderType('MOVE');
-    setTargetX((pos[0] / 1000).toFixed(1));
-    setTargetY((pos[1] / 1000).toFixed(1));
-  };
-
   if (!state) {
     return (
       <div className="order-panel">

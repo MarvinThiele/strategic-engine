@@ -1,22 +1,39 @@
-import { useState } from 'react';
-import { useBattleState } from './hooks/useBattleState';
-import { useSelection } from './hooks/useSelection';
-import { useEventStream } from './hooks/useEventStream';
-import { useOrders } from './hooks/useOrders';
+import { useState, useEffect } from 'react';
+import { useGameStore } from './store/gameStore';
+import { convertGameStateToBattleState } from './adapters/stateAdapter';
+import { convertGameEventsToBattleEvents } from './adapters/eventAdapter';
+import { convertComponentOrderToEngineOrder } from './adapters/orderAdapter';
 import { Header } from './components/Header/Header';
-import { BattlefieldCanvas } from './components/Battlefield/BattlefieldCanvas';
+import { PixiBattlefield } from './components/Battlefield/PixiBattlefieldSimple';
 import { UnitPanel } from './components/UnitPanel/UnitPanel';
 import { OrderPanel } from './components/OrderPanel/OrderPanel';
 import { TimeControls } from './components/TimeControls/TimeControls';
 import { EventLog } from './components/EventLog/EventLog';
 import type { Position } from './types';
+import type { Order as ComponentOrder } from './types';
 
 function App() {
-  const { state, isLoading, error } = useBattleState();
-  const { selectedUnitId, selectUnit, clearSelection } = useSelection();
-  const { events, clearEvents } = useEventStream();
-  const { submitOrder, isSubmitting, error: orderError } = useOrders();
+  // Get state and actions from Zustand store
+  const gameState = useGameStore((s) => s.state);
+  const gameEvents = useGameStore((s) => s.events);
+  const selectedUnitId = useGameStore((s) => s.selectedUnitId);
+  const startBattle = useGameStore((s) => s.startBattle);
+  const selectUnit = useGameStore((s) => s.selectUnit);
+  const clearEvents = useGameStore((s) => s.clearEvents);
+  const issueOrders = useGameStore((s) => s.issueOrders);
+
+  // Convert engine state to component-friendly format
+  const state = convertGameStateToBattleState(gameState);
+  const events = convertGameEventsToBattleEvents(gameEvents);
+
   const [clickedPosition, setClickedPosition] = useState<Position | null>(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+
+  // Start battle on mount
+  useEffect(() => {
+    startBattle();
+  }, [startBattle]);
 
   const handleUnitClick = (unitId: string) => {
     selectUnit(unitId);
@@ -25,40 +42,51 @@ function App() {
 
   const handleEmptyClick = (worldPos: Position) => {
     if (selectedUnitId) {
-      // Auto-fill move order with clicked position
-      setClickedPosition(worldPos);
+      // Auto-submit move order (RTS style)
+      console.log('[App] Auto-submitting move order to', worldPos);
+      const order: ComponentOrder = {
+        kind: 'move',
+        unit_id: selectedUnitId,
+        target_pos: worldPos,
+      };
+      handleSubmitOrder(order);
+      setClickedPosition(worldPos); // Also set for visual feedback
     } else {
-      clearSelection();
+      selectUnit(null);
       setClickedPosition(null);
     }
   };
 
   const handleBattleStarted = () => {
-    clearSelection();
+    selectUnit(null);
     clearEvents();
+    startBattle();
   };
 
-  if (error) {
-    return (
-      <div className="app-container">
-        <Header state={null} onBattleStarted={handleBattleStarted} />
-        <div className="error-container">
-          <h2>Error</h2>
-          <p>{error}</p>
-          <p>Make sure the backend server is running on port 8000</p>
-        </div>
-      </div>
-    );
-  }
+  const handleSubmitOrder = async (order: ComponentOrder): Promise<boolean> => {
+    setIsSubmittingOrder(true);
+    setOrderError(null);
+
+    try {
+      const engineOrder = convertComponentOrderToEngineOrder(order);
+      issueOrders([engineOrder]);
+      return true;
+    } catch (error) {
+      setOrderError(error instanceof Error ? error.message : 'Failed to submit order');
+      return false;
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
 
   return (
     <div className="app-container">
       <Header state={state} onBattleStarted={handleBattleStarted} />
 
       <main className="app-main">
-        {isLoading ? (
+        {!state ? (
           <div className="loading-container">
-            <p>Loading battle state...</p>
+            <p>Initializing battle...</p>
           </div>
         ) : (
           <>
@@ -71,7 +99,7 @@ function App() {
             </aside>
 
             <div className="center-content">
-              <BattlefieldCanvas
+              <PixiBattlefield
                 state={state}
                 selectedUnitId={selectedUnitId}
                 onUnitClick={handleUnitClick}
@@ -83,8 +111,8 @@ function App() {
               <OrderPanel
                 state={state}
                 selectedUnitId={selectedUnitId}
-                onSubmitOrder={submitOrder}
-                isSubmitting={isSubmitting}
+                onSubmitOrder={handleSubmitOrder}
+                isSubmitting={isSubmittingOrder}
                 error={orderError}
                 clickedPosition={clickedPosition}
                 onPositionUsed={() => setClickedPosition(null)}
